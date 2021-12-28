@@ -118,31 +118,38 @@ func Prompt(c *Client){
 			Counter: 0,
 		}
 
-		//Heartbeat(context, &message)
+		//TODO skal finpudses så det scaler ift at slette døde connections, det virker pt kun med 3 servere
+		empty := service.Empty{}
+		counter := 0
 		for i := range connections {
-			_, err := connections[i].client.Publish(context, &message)
-			//errase connection from array
-
-			 if err != nil {
-			 	connections[i] = connections[len(connections)-1]
-			 	connections = connections[:len(connections)-1]
-				
-			 	
+			_, err :=  connections[i].client.Heartbeat(context, &empty)
+			if err == nil{
+				message.Counter++
+				log.Println(message.Counter)
+			}
+			_, error := connections[i].client.Publish(context, &message)
+			if error != nil {
+				connections[i] = connections[len(connections)-1]
+				counter++
 			}
 		}
-}
-
-func Heartbeat(ctx context.Context, message *service.Message) {
-
-	_, err := connections[0].client.Publish(ctx, message)
-
-	if err != nil {
-		connections[0] = connections[len(connections)-1]
-		connections = connections[:len(connections)-1]
+			
+		connections = connections[:len(connections)-counter]
 		
-		Heartbeat(ctx, message)
-	}
 }
+
+//DELETE IF NOT USED
+// func Heartbeat(ctx context.Context, message *service.Message) {
+
+// 	_, err := connections[0].client.Publish(ctx, message)
+
+// 	if err != nil {
+// 		connections[0] = connections[len(connections)-1]
+// 		connections = connections[:len(connections)-1]
+		
+// 		Heartbeat(ctx, message)
+// 	}
+// }
 
 //print 
 func (c *Client) Broadcast(ctx context.Context, msg *service.Message) (*service.Empty, error) {

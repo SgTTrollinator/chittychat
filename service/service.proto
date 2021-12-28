@@ -28,6 +28,7 @@ message Acknowledgment {
 service ChatClientService {
     rpc Publish(Message) returns (Message);
     rpc AddClient(AddMessage) returns (Acknowledgment);
+    rpc Heartbeat(Empty) returns (Acknowledgment);
 }
 
 service BroadcastService{

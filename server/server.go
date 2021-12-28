@@ -4,6 +4,7 @@ import (
 	service "chittychat/service"
 	"chittychat/utils"
 	"context"
+
 	//"fmt"
 	"log"
 	"net"
@@ -58,10 +59,15 @@ func (s *Server) Publish(ctx context.Context, msg *service.Message) (*service.Me
 	msg.LamportTimestamp++
 	log.Printf("%v said: %v, Lamport Timestamp is: %v", msg.ClientName, msg.Body, msg.GetLamportTimestamp())
 	
-	//only 9000
-	
+	//only one server will broadcast
+	if msg.Counter == 1{
 	SendMessageToClients(msg, s)
+	}
 	return &service.Message{Body: "The server received the message", LamportTimestamp: msg.GetLamportTimestamp()}, nil
+}
+
+func (s *Server) Heartbeat(ctx context.Context, msg *service.Empty) (*service.Acknowledgment, error) {
+	return &service.Acknowledgment{Succes: true}, nil
 }
 
 func SendMessageToClients(broadcastMessage *service.Message, s *Server) {

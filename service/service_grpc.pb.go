@@ -24,6 +24,7 @@ const _ = grpc.SupportPackageIsVersion7
 type ChatClientServiceClient interface {
 	Publish(ctx context.Context, in *Message, opts ...grpc.CallOption) (*Message, error)
 	AddClient(ctx context.Context, in *AddMessage, opts ...grpc.CallOption) (*Acknowledgment, error)
+	Heartbeat(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*Acknowledgment, error)
 }
 
 type chatClientServiceClient struct {
@@ -52,12 +53,22 @@ func (c *chatClientServiceClient) AddClient(ctx context.Context, in *AddMessage,
 	return out, nil
 }
 
+func (c *chatClientServiceClient) Heartbeat(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*Acknowledgment, error) {
+	out := new(Acknowledgment)
+	err := c.cc.Invoke(ctx, "/service.ChatClientService/Heartbeat", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // ChatClientServiceServer is the server API for ChatClientService service.
 // All implementations must embed UnimplementedChatClientServiceServer
 // for forward compatibility
 type ChatClientServiceServer interface {
 	Publish(context.Context, *Message) (*Message, error)
 	AddClient(context.Context, *AddMessage) (*Acknowledgment, error)
+	Heartbeat(context.Context, *Empty) (*Acknowledgment, error)
 	mustEmbedUnimplementedChatClientServiceServer()
 }
 
@@ -70,6 +81,9 @@ func (UnimplementedChatClientServiceServer) Publish(context.Context, *Message) (
 }
 func (UnimplementedChatClientServiceServer) AddClient(context.Context, *AddMessage) (*Acknowledgment, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method AddClient not implemented")
+}
+func (UnimplementedChatClientServiceServer) Heartbeat(context.Context, *Empty) (*Acknowledgment, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method Heartbeat not implemented")
 }
 func (UnimplementedChatClientServiceServer) mustEmbedUnimplementedChatClientServiceServer() {}
 
@@ -120,6 +134,24 @@ func _ChatClientService_AddClient_Handler(srv interface{}, ctx context.Context, 
 	return interceptor(ctx, in, info, handler)
 }
 
+func _ChatClientService_Heartbeat_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(Empty)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ChatClientServiceServer).Heartbeat(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/service.ChatClientService/Heartbeat",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ChatClientServiceServer).Heartbeat(ctx, req.(*Empty))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // ChatClientService_ServiceDesc is the grpc.ServiceDesc for ChatClientService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -134,6 +166,10 @@ var ChatClientService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "AddClient",
 			Handler:    _ChatClientService_AddClient_Handler,
+		},
+		{
+			MethodName: "Heartbeat",
+			Handler:    _ChatClientService_Heartbeat_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},
