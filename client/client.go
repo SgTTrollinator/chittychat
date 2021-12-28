@@ -1,11 +1,13 @@
 package main
 
 import (
+	"bufio"
 	service "chittychat/service"
 	"chittychat/utils"
 	"context"
 	"fmt"
 	"log"
+	"net"
 	"os"
 
 	"google.golang.org/grpc"
@@ -37,26 +39,6 @@ func main() {
 
 	c := Client{clientListningPort: ReadPort, name: ReadName}
 
-	// var conn *grpc.ClientConn
-	// conn, err := grpc.Dial(":5000", grpc.WithInsecure())
-	// if err != nil {
-	// 	log.Fatalf("could not connect: %s", err)
-	// }
-	// c := chat.NewChatClientServiceClient(conn)
-	// defer conn.Close()
-
-	// UserInput := os.Args[1:]
-	// ReadPort := UserInput[0]
-	// ReadName := UserInput[1]
-
-	// client := Client{clientListningPort: ReadPort, name: ReadName}
-
-	// JoinClientPart(&client, c)
-
-	// go BroadcastListeningPart(&client)
-	// ChooseCommand(&client, c)
-
-
 	for i := range serverPorts {
 		ctx, conn, c := setupConnection(i, &c)
 		
@@ -68,12 +50,14 @@ func main() {
 		}
 
 		connections = append(connections, newConn)
-
+		
 		defer newConn.clientConn.Close()
 	}
 
-	for{
+	go BroadcastListeningPart(&c)
 
+	for{
+		Prompt(&c)	
 	}
 
 }
@@ -89,9 +73,10 @@ func setupConnection(index int, c *Client) (context.Context, *grpc.ClientConn, s
 	}
 
 	client := service.NewChatClientServiceClient(conn)
+	
 
 	JoinClientToServer(c, client) 
-
+	
 	fmt.Printf("Connecting to: %v \n", c.clientListningPort)
 	return context, conn, client
 }
@@ -113,4 +98,72 @@ func JoinClientToServer(client *Client, serviceClient service.ChatClientServiceC
 
 	client.lamport.Increment()
 	log.Printf("%v. The Lamport Timestamp is: %v", response.Succes, response.Lamport)
+}
+
+func Prompt(c *Client){
+		context := context.Background()
+
+		//var scannedLine string
+		//fmt.Scanf("%s", &scannedLine)
+
+		log.Printf("Please input a message:")
+		scanner := bufio.NewScanner(os.Stdin)
+		scanner.Scan()
+		scannedLine := scanner.Text()
+
+		message := service.Message{
+			Body: scannedLine,
+			LamportTimestamp: c.lamport.Value(),
+			ClientName: c.name,
+			Counter: 0,
+		}
+
+		//Heartbeat(context, &message)
+		for i := range connections {
+			_, err := connections[i].client.Publish(context, &message)
+			//errase connection from array
+
+			 if err != nil {
+			 	connections[i] = connections[len(connections)-1]
+			 	connections = connections[:len(connections)-1]
+				
+			 	
+			}
+		}
+}
+
+func Heartbeat(ctx context.Context, message *service.Message) {
+
+	_, err := connections[0].client.Publish(ctx, message)
+
+	if err != nil {
+		connections[0] = connections[len(connections)-1]
+		connections = connections[:len(connections)-1]
+		
+		Heartbeat(ctx, message)
+	}
+}
+
+//print 
+func (c *Client) Broadcast(ctx context.Context, msg *service.Message) (*service.Empty, error) {
+	msg.LamportTimestamp++
+	log.Printf("%s said: %s \n", msg.ClientName, msg.Body)
+	log.Printf("Lamport Timestamp is: %v", c.lamport)
+
+	return &service.Empty{}, nil
+}
+
+func BroadcastListeningPart(c *Client) {
+	lis, err := net.Listen("tcp", ":"+c.clientListningPort)
+	if err != nil {
+		log.Fatalf("Failed to listen: %v", err)
+	}
+
+	grpcServer := grpc.NewServer()
+
+	service.RegisterBroadcastServiceServer(grpcServer, c)
+
+	if err := grpcServer.Serve(lis); err != nil {
+		log.Fatalf("Failed to serve: %v", err)
+	}
 }

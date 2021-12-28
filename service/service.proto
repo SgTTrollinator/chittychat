@@ -8,6 +8,7 @@ message Message {
     string body = 1;
     int32 lamportTimestamp =2;
     string clientName =3;
+    int32 counter = 4;
 }
 
 message AddMessage{
