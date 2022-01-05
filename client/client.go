@@ -125,7 +125,6 @@ func Prompt(c *Client){
 			_, err :=  connections[i].client.Heartbeat(context, &empty)
 			if err == nil{
 				message.Counter++
-				log.Println(message.Counter)
 			}
 			_, error := connections[i].client.Publish(context, &message)
 			if error != nil {
@@ -138,24 +137,10 @@ func Prompt(c *Client){
 		
 }
 
-//DELETE IF NOT USED
-// func Heartbeat(ctx context.Context, message *service.Message) {
 
-// 	_, err := connections[0].client.Publish(ctx, message)
-
-// 	if err != nil {
-// 		connections[0] = connections[len(connections)-1]
-// 		connections = connections[:len(connections)-1]
-		
-// 		Heartbeat(ctx, message)
-// 	}
-// }
-
-//print 
 func (c *Client) Broadcast(ctx context.Context, msg *service.Message) (*service.Empty, error) {
 	msg.LamportTimestamp++
 	log.Printf("%s said: %s \n", msg.ClientName, msg.Body)
-	log.Printf("Lamport Timestamp is: %v", c.lamport)
 
 	return &service.Empty{}, nil
 }
